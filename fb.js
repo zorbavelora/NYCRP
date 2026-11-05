@@ -1,5 +1,5 @@
 /* Firebase bridge: gives the page the same claude.use(...) API it has on claude.ai,
-   backed by Firebase Auth (Google sign-in) and Firestore. Loaded before the page script. */
+   backed by Firebase anonymous auth, a shared group password and Firestore. Loaded before the page script. */
 (function(){
   const V='10.12.0',BASE=`https://www.gstatic.com/firebasejs/${V}/`;
   const ROLES={viewer:'Görüntüleyici',contributor:'Katkıda bulunan',editor:'Düzenleyici'};
@@ -16,25 +16,57 @@
     return g;
   }
   const btn='font-family:Cinzel,serif;letter-spacing:.12em;font-size:13px;text-transform:uppercase;padding:12px 22px;border:1px solid #8a5a3e;border-radius:4px;background:linear-gradient(180deg,#8e2333,#6d1421);color:#f4e9dc;cursor:pointer';
-  function signInGate(auth,au){
+  const inp='width:100%;box-sizing:border-box;padding:11px 14px;border-radius:4px;border:1px solid #5a353c;background:#170e10;color:#ece2d6;font:inherit;font-size:18px;text-align:center';
+  const escH=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const secretRef=(fs,db)=>fs.doc(db,'secret','main');
+  // Ask for the group password; the security rules accept the key only if it matches.
+  function passwordGate(fs,db,uid){
     return new Promise(res=>{
-      const g=gate(`<p style="font-size:19px;margin:0">Arşive girmek için Google hesabınla giriş yap.</p>
-        <button id="fb-in" style="${btn}">Google ile giriş yap</button><p id="fb-msg" style="margin:0;color:#cf6a7c;min-height:1.4em"></p>`);
-      g.querySelector('#fb-in').onclick=async()=>{
-        const p=new auth.GoogleAuthProvider();p.setCustomParameters({prompt:'select_account'});
-        try{const r=await auth.signInWithPopup(au,p);g.remove();res(r.user);}
-        catch(e){
-          if(e&&(e.code==='auth/popup-blocked'||e.code==='auth/operation-not-supported-in-this-environment'))auth.signInWithRedirect(au,p);
-          else g.querySelector('#fb-msg').textContent=e&&e.code==='auth/unauthorized-domain'?'Bu site adresi Firebase’de yetkili alan olarak eklenmemiş.':'Giriş tamamlanamadı. Yeniden dene.';
-        }
+      const show=()=>{
+        const g=gate(`<p style="font-size:19px;margin:0">Arşive girmek için grup şifresini yaz.</p>
+          <form id="fb-pw" style="display:grid;gap:12px;width:100%"><input id="fb-pass" type="password" autocomplete="current-password" style="${inp}" placeholder="Grup şifresi" aria-label="Grup şifresi"><button style="${btn}">Gir</button></form>
+          <p id="fb-msg" style="margin:0;color:#cf6a7c;min-height:1.4em"></p>
+          <button id="fb-setup" style="background:none;border:none;color:#7f6c68;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">İlk kurulum: şifreleri belirle</button>`);
+        const pw=g.querySelector('#fb-pass');pw.focus();
+        g.querySelector('#fb-pw').onsubmit=async e=>{
+          e.preventDefault();const k=pw.value;if(!k){pw.focus();return;}
+          const msg=g.querySelector('#fb-msg');msg.style.color='#b4a49c';msg.textContent='Kontrol ediliyor…';
+          for(const role of ['editor','contributor']){
+            try{await fs.setDoc(fs.doc(db,'keys',uid),{role,k,at:new Date().toISOString()});res(role);return;}catch(_){}
+          }
+          msg.style.color='#cf6a7c';msg.textContent='Şifre yanlış.';pw.select();
+        };
+        g.querySelector('#fb-setup').onclick=setup;
       };
+      const setup=()=>{
+        const g=gate(`<p style="font-size:19px;margin:0">İlk kurulum</p>
+          <p style="margin:0;color:#b4a49c">Bu yalnızca bir kez, sitenin sahibi tarafından yapılır. Arkadaşlarına <b style="color:#ece2d6">grup şifresini</b> verirsin; <b style="color:#ece2d6">yönetici şifresi</b> sende kalır.</p>
+          <form id="fb-su" style="display:grid;gap:12px;width:100%"><input id="fb-m" type="password" autocomplete="new-password" style="${inp}" placeholder="Grup şifresi (en az 6 karakter)" aria-label="Grup şifresi"><input id="fb-a" type="password" autocomplete="new-password" style="${inp}" placeholder="Yönetici şifresi (farklı olsun)" aria-label="Yönetici şifresi"><button style="${btn}">Kaydet ve gir</button></form>
+          <p id="fb-msg" style="margin:0;color:#cf6a7c;min-height:1.4em"></p>
+          <button id="fb-back" style="background:none;border:none;color:#7f6c68;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">Geri dön</button>`);
+        g.querySelector('#fb-back').onclick=show;
+        g.querySelector('#fb-su').onsubmit=async e=>{
+          e.preventDefault();const m=g.querySelector('#fb-m').value,a=g.querySelector('#fb-a').value,msg=g.querySelector('#fb-msg');
+          if(m.length<6||a.length<6){msg.textContent='İki şifre de en az 6 karakter olmalı.';return;}
+          if(m===a){msg.textContent='Grup şifresi ile yönetici şifresi farklı olmalı.';return;}
+          try{const b=fs.writeBatch(db);b.set(secretRef(fs,db),{member:m,admin:a});b.set(fs.doc(db,'keys',uid),{role:'editor',k:a,at:new Date().toISOString()});await b.commit();res('editor');}
+          catch(_){msg.textContent='Kurulum zaten yapılmış. Geri dönüp şifreyle gir.';}
+        };
+      };
+      show();
     });
   }
-  function noAccessGate(email,auth,au){
-    const g=gate(`<p style="font-size:19px;margin:0">Bu arşive erişimin yok.</p>
-      <p style="margin:0;color:#b4a49c">Yöneticiden <b style="color:#ece2d6">${String(email).replace(/[<>&"]/g,'')}</b> adresini erişim listesine eklemesini iste.</p>
-      <button id="fb-out" style="${btn};background:transparent">Başka hesapla gir</button>`);
-    g.querySelector('#fb-out').onclick=async()=>{await auth.signOut(au);location.reload();};
+  // Pick which player this browser belongs to (like choosing a name at the door).
+  function nameGate(fs,db,uid){
+    return new Promise(async res=>{
+      let players=[];try{const s=await fs.getDoc(fs.doc(db,'meta','settings'));players=((s.exists()&&s.data().players)||[]).map(p=>p.name).filter(Boolean);}catch(_){}
+      const g=gate(`<p style="font-size:19px;margin:0">Sen kimsin?</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center">${players.map(n=>`<button class="fb-n" data-n="${escH(n)}" style="${btn};background:transparent">${escH(n)}</button>`).join('')}</div>
+        <form id="fb-nf" style="display:grid;gap:10px;width:100%"><input id="fb-name" maxlength="40" style="${inp}" placeholder="${players.length?'Listede yoksan adını yaz':'Adını yaz'}" aria-label="Adın"><button style="${btn}">Devam</button></form>`);
+      const pick=async n=>{n=String(n||'').trim().slice(0,40);if(!n)return;try{await fs.setDoc(fs.doc(db,'members',uid),{playerName:n,firstSeen:new Date().toISOString()},{merge:true});}catch(_){}g.remove();res(n);};
+      g.querySelectorAll('.fb-n').forEach(b=>b.onclick=()=>pick(b.dataset.n));
+      g.querySelector('#fb-nf').onsubmit=e=>{e.preventDefault();pick(g.querySelector('#fb-name').value);};
+    });
   }
 
   /* ---------- Boot ---------- */
@@ -45,20 +77,21 @@
       if(!cfg||!cfg.apiKey){gate('<p style="font-size:19px;margin:0">Firebase ayarı eksik.</p><p style="margin:0;color:#b4a49c">index.html içindeki FIREBASE_CONFIG doldurulmalı.</p>');return null;}
       const [app,auth,fs]=await Promise.all(['firebase-app','firebase-auth','firebase-firestore'].map(m=>import(BASE+m+'.js')));
       const A=app.initializeApp(cfg),au=auth.getAuth(A),db=fs.getFirestore(A);
-      try{await auth.getRedirectResult(au);}catch(_){}
+      // No accounts: each browser gets an invisible anonymous id, then proves the group password once.
       let user=await new Promise(r=>{const un=auth.onAuthStateChanged(au,x=>{un();r(x);});});
-      if(!user)user=await signInGate(auth,au);
-      const email=String(user.email||'').toLowerCase();
-      let role=null;
-      try{const a=await fs.getDoc(fs.doc(db,'access',email));if(a.exists())role=a.data().role||'viewer';}catch(_){}
-      if(!role){
-        // No access entry: the owner (named in the security rules) can still read; everyone else is refused.
-        try{await fs.getDoc(fs.doc(db,'meta','settings'));role='owner';}catch(_){role=null;}
+      if(!user){
+        try{user=(await auth.signInAnonymously(au)).user;}
+        catch(e){gate(`<p style="font-size:19px;margin:0">Siteye bağlanılamadı.</p><p style="margin:0;color:#b4a49c">${e&&e.code==='auth/admin-restricted-operation'?'Firebase’de Authentication &gt; Sign-in method altında <b>Anonymous</b> girişi açılmamış.':'Bağlantını kontrol edip sayfayı yenile.'}</p>`);return null;}
       }
-      if(!role){noAccessGate(email,auth,au);return null;}
-      const C={app,auth,fs,A,au,db,user,email,role,uid:user.uid};
-      const canWrite=role!=='viewer';
-      if(canWrite){try{await fs.setDoc(fs.doc(db,'members',user.uid),{accountName:user.displayName||'',accountPhoto:user.photoURL||'',email},{merge:true});}catch(_){}}
+      const uid=user.uid;
+      let role=null;
+      try{const k=await fs.getDoc(fs.doc(db,'keys',uid));if(k.exists())role=k.data().role;}catch(_){}
+      if(!role)role=await passwordGate(fs,db,uid);
+      let name='';
+      try{const m=await fs.getDoc(fs.doc(db,'members',uid));if(m.exists())name=m.data().playerName||'';}catch(_){}
+      if(!name)name=await nameGate(fs,db,uid);
+      document.getElementById('fb-gate')?.remove();
+      const C={app,auth,fs,A,au,db,user,role,uid,name};
       ctx=C;return C;
     })();
     return booting;
@@ -95,19 +128,19 @@
 
   /* ---------- user ---------- */
   function makeUser(C){
-    const {fs,db,user,role}=C,admin=role==='owner'||role==='editor';
+    const {fs,db,uid,role,name}=C,admin=role==='editor';
     const cache={};
-    const initialsSvg=n=>'data:image/svg+xml,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#2a171b"/><text x="32" y="40" text-anchor="middle" font-family="Georgia" font-size="24" fill="#c9a66b">${String(n||'?').trim().slice(0,1).toUpperCase().replace(/[<&>]/g,'')}</text></svg>`);
-    const me={id:user.uid,name:user.displayName||'',avatarUrl:user.photoURL||initialsSvg(user.displayName),color:'#8e2333',email:C.email,isOwner:role==='owner',canEdit:admin};
+    const initialsSvg=n=>'data:image/svg+xml,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#2a171b"/><text x="32" y="40" text-anchor="middle" font-family="Georgia" font-size="24" fill="#c9a66b">${String(n||'?').trim().slice(0,1).toLocaleUpperCase('tr').replace(/[<&>]/g,'')}</text></svg>`);
+    const me={id:uid,name,avatarUrl:initialsSvg(name),color:'#8e2333',email:null,isOwner:admin,canEdit:admin};
     return {
-      isOwner:async()=>role==='owner',canEdit:async()=>admin,
-      can:async n=>n==='data.write'?role!=='viewer':n==='assets.write'?admin:null,
-      id:async()=>user.uid,me:async()=>me,name:async()=>me.name,email:async()=>me.email,avatarUrl:async()=>me.avatarUrl,
+      isOwner:async()=>admin,canEdit:async()=>admin,
+      can:async n=>n==='data.write'?true:n==='assets.write'?admin:null,
+      id:async()=>uid,me:async()=>me,name:async()=>me.name,email:async()=>null,avatarUrl:async()=>me.avatarUrl,
       profiles:async ids=>{
         const out={};
         await Promise.all([].concat(ids).map(async id=>{
-          if(!cache[id]){cache[id]=(async()=>{try{const s=await fs.getDoc(fs.doc(db,'members',id));const d=s.exists()?s.data():{};return {name:d.accountName||'',avatarUrl:d.accountPhoto||''};}catch(_){return {name:'',avatarUrl:''};}})();}
-          const p=await cache[id];out[id]={id,name:p.name,avatarUrl:p.avatarUrl||initialsSvg(p.name),color:'#8e2333',email:null,isMe:id===user.uid,guest:false};
+          if(!cache[id]){cache[id]=(async()=>{try{const s=await fs.getDoc(fs.doc(db,'members',id));const d=s.exists()?s.data():{};return {name:d.playerName||'',avatarUrl:''};}catch(_){return {name:'',avatarUrl:''};}})();}
+          const p=await cache[id];out[id]={id,name:p.name,avatarUrl:p.avatarUrl||initialsSvg(p.name),color:'#8e2333',email:null,isMe:id===uid,guest:false};
         }));
         return out;
       },
@@ -191,6 +224,8 @@
       const f={db:makeDb,user:makeUser,assets:c=>c.role==='viewer'?null:makeAssets(c),downloads:()=>downloads,room:makeRoom}[name];
       return f?(made[name]=f(C)):null;
     },
-    signOut:async()=>{const C=await boot();if(C){try{await C.fs.deleteDoc(C.fs.doc(C.db,'presence',C.uid));}catch(_){}await C.auth.signOut(C.au);}location.reload();}
+    // Leaving forgets this browser: next visit asks for the password and the name again.
+    signOut:async()=>{const C=await boot();if(C){for(const c of ['presence','keys']){try{await C.fs.deleteDoc(C.fs.doc(C.db,c,C.uid));}catch(_){}}await C.auth.signOut(C.au);}location.reload();},
+    setPasswords:async(member,admin)=>{const C=await boot();try{await C.fs.setDoc(C.fs.doc(C.db,'secret','main'),{member,admin});}catch(e){throw mapErr(e);}}
   };
 })();

@@ -1341,16 +1341,16 @@ function vSystem(){
     <section class="panel"><h2 class="sec-h" style="margin-top:0">${icon('history')}Yedekten geri yükle</h2>${S.canAdmin?`<p class="muted" style="margin-top:0">Daha önce indirdiğin bir yedeği seç. Aynı kimlikli kayıtların üzerine yazılır, diğerleri olduğu gibi kalır.</p><input type="file" class="in" id="restore-file" accept="application/json,.json" aria-label="Yedek dosyası">${S.restore?`<div class="notice" style="margin-top:12px">${esc(S.restore.msg)}${S.restore.ready?`<div style="margin-top:10px"><button class="btn danger" data-act="restore">Geri yüklemeyi onayla</button></div>`:''}</div>`:''}`:'<p class="muted" style="margin-top:0">Yalnızca düzenleyiciler geri yükleyebilir.</p>'}</section>
     ${FB?accessPanel():`<section class="panel"><h2 class="sec-h" style="margin-top:0">${icon('lock')}Erişim</h2><p class="muted" style="margin-top:0">Giriş şifreyle değil, claude.ai hesabıyla yapılır. Sayfanın Paylaş menüsünden birini <b style="color:var(--ink)">Katkıda bulunan</b> olarak eklersen kayıt ekleyip düzenleyebilir; <b style="color:var(--ink)">Görüntüleyici</b> yalnızca okur. Ayarlar ve kilitli sayfalar düzenleyicilere ayrılmıştır.</p><p style="margin:0">Senin yetkin: <b>${S.canAdmin?'Düzenleyici':canW()?'Katkıda bulunan':'Okuyucu'}</b></p></section>`}</div>`;
 }
-const ROLE_LABEL={viewer:'Görüntüleyici',contributor:'Katkıda bulunan',editor:'Düzenleyici'};
+const ROLE_LABEL={contributor:'Üye',editor:'Yönetici'};
 function accessPanel(){
-  const mine=`<p style="margin:0">Senin yetkin: <b>${S.canAdmin?'Düzenleyici':canW()?'Katkıda bulunan':'Görüntüleyici'}</b></p>`;
-  const intro=`<p class="muted" style="margin-top:0">Siteye Google hesabıyla girilir. Yalnızca bu listedeki e-postalar girebilir. <b style="color:var(--ink)">Görüntüleyici</b> okur, <b style="color:var(--ink)">Katkıda bulunan</b> kayıt ekleyip sohbete yazar, <b style="color:var(--ink)">Düzenleyici</b> ayarları ve erişim listesini de yönetir.</p>`;
+  const mine=`<p style="margin:0">Senin yetkin: <b>${S.canAdmin?'Yönetici':'Üye'}</b></p>`;
+  const intro=`<p class="muted" style="margin-top:0">Siteye hesap açmadan, <b style="color:var(--ink)">grup şifresiyle</b> girilir; her tarayıcı şifreyi bir kez sorar ve kişi listeden adını seçer. <b style="color:var(--ink)">Yönetici şifresiyle</b> girenler ayarları ve şifreleri yönetir. “Çıkış” o tarayıcıyı unutturur.</p>`;
   if(!S.canAdmin)return `<section class="panel" style="grid-column:1/-1"><h2 class="sec-h" style="margin-top:0">${icon('lock')}Erişim</h2>${intro}${mine}</section>`;
-  const list=[...S.access].sort((a,b)=>a.id.localeCompare(b.id));
-  return `<section class="panel" style="grid-column:1/-1"><h2 class="sec-h" style="margin-top:0">${icon('lock')}Erişim listesi · ${list.length}</h2>${intro}
-    <form id="accform" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px"><input id="acc-email" class="in" type="email" placeholder="arkadas@gmail.com" style="flex:1 1 240px;min-width:0" aria-label="E-posta"><select id="acc-role" class="in" aria-label="Yetki">${Object.entries(ROLE_LABEL).map(([v,l])=>`<option value="${v}" ${v==='contributor'?'selected':''}>${l}</option>`).join('')}</select><button class="btn primary" data-act="addaccess">Ekle</button></form>
-    ${list.length?`<div class="tbl-wrap"><table class="tbl" style="min-width:420px"><thead><tr><th>E-posta</th><th>Yetki</th><th></th></tr></thead><tbody>${list.map(a=>`<tr><td style="overflow-wrap:anywhere">${esc(a.id)}</td><td><select class="in" data-acc="${esc(a.id)}" aria-label="${esc(a.id)} yetkisi">${Object.entries(ROLE_LABEL).map(([v,l])=>`<option value="${v}" ${v===a.role?'selected':''}>${l}</option>`).join('')}</select></td><td><button class="btn small danger" data-act="rmaccess" data-id="${esc(a.id)}">Kaldır</button></td></tr>`).join('')}</tbody></table></div>`:'<p class="empty-i">Listede henüz kimse yok. Arkadaşlarının Google e-postalarını ekle.</p>'}
-    <p class="muted" style="margin:12px 0 0;font-size:15px">Site sahibi listede olmasa da her şeye erişir.</p></section>`;
+  const list=[...S.access].sort((a,b)=>String(b.at||'').localeCompare(String(a.at||'')));
+  return `<section class="panel" style="grid-column:1/-1"><h2 class="sec-h" style="margin-top:0">${icon('lock')}Şifreler ve giriş yapan cihazlar</h2>${intro}
+    <form id="pwform" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:6px"><input id="pw-m" class="in" type="password" autocomplete="new-password" placeholder="Yeni grup şifresi" style="flex:1 1 200px;min-width:0" aria-label="Yeni grup şifresi"><input id="pw-a" class="in" type="password" autocomplete="new-password" placeholder="Yeni yönetici şifresi" style="flex:1 1 200px;min-width:0" aria-label="Yeni yönetici şifresi"><button class="btn primary" data-act="setpw">Şifreleri değiştir</button></form>
+    <p class="muted" style="margin:0 0 16px;font-size:15px">Şifreyi değiştirmek zaten girmiş cihazları çıkarmaz. Birini çıkarmak için aşağıdan cihazını kaldır.</p>
+    ${list.length?`<div class="tbl-wrap"><table class="tbl" style="min-width:420px"><thead><tr><th>Kim</th><th>Yetki</th><th>İlk giriş</th><th></th></tr></thead><tbody>${list.map(a=>`<tr><td>${esc(dispName(a.id))}${a.id===S.meId?' <small class="muted">(bu cihaz)</small>':''}</td><td><select class="in" data-acc="${esc(a.id)}" aria-label="Yetki">${Object.entries(ROLE_LABEL).map(([v,l])=>`<option value="${v}" ${v===a.role?'selected':''}>${l}</option>`).join('')}</select></td><td class="num">${fmtD(String(a.at||'').slice(0,10))}</td><td>${a.id===S.meId?'':`<button class="btn small danger" data-act="rmaccess" data-id="${esc(a.id)}">Çıkar</button>`}</td></tr>`).join('')}</tbody></table></div>`:'<p class="empty-i">Henüz giriş yapan cihaz yok.</p>'}</section>`;
 }
 async function backup(){
   const data={};Object.keys(K).forEach(k=>{if(K[k].col)data[K[k].col]=S[k];});data.meta=[{...S.settings,id:'settings'}];
@@ -1571,10 +1571,11 @@ document.addEventListener('click',e=>{
     case 'fplat':S.f.plat=d.v;render();break;
     case 'clear':Object.keys(S.f).forEach(k=>S.f[k]='');render();break;
     case 'signout':window.claude.signOut();break;
-    case 'addaccess':{e.preventDefault();const em=String($('#acc-email').value||'').trim().toLowerCase(),role=$('#acc-role').value;
-      if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)){toast('Geçerli bir e-posta yaz.');$('#acc-email').focus();break;}
-      DB.collection('access').doc(em).set({role,addedBy:S.meId,at:new Date().toISOString()}).then(()=>{$('#acc-email').value='';toast(`${em} eklendi.`);},err=>toast(errMsg(err)));break;}
-    case 'rmaccess':if(b.dataset.armed){DB.collection('access').doc(d.id).delete().then(()=>toast(`${d.id} kaldırıldı.`),err=>toast(errMsg(err)));}else{b.dataset.armed='1';b.textContent='Emin misin?';b.classList.add('armed');setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent='Kaldır';b.classList.remove('armed');}},4000);}break;
+    case 'setpw':{e.preventDefault();const m=$('#pw-m').value,a=$('#pw-a').value;
+      if(m.length<6||a.length<6){toast('İki şifre de en az 6 karakter olmalı.');break;}
+      if(m===a){toast('Grup şifresi ile yönetici şifresi farklı olmalı.');break;}
+      window.claude.setPasswords(m,a).then(()=>{$('#pw-m').value='';$('#pw-a').value='';toast('Şifreler değişti. Yeni girişler bu şifrelerle olacak.');},err=>toast(errMsg(err)));break;}
+    case 'rmaccess':if(b.dataset.armed){DB.collection('keys').doc(d.id).delete().then(()=>toast('Cihaz çıkarıldı; bir dahaki girişte şifre soracak.'),err=>toast(errMsg(err)));}else{b.dataset.armed='1';b.textContent='Emin misin?';b.classList.add('armed');setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.textContent='Çıkar';b.classList.remove('armed');}},4000);}break;
     case 'sendmsg':e.preventDefault();sendMsg();break;
     case 'prunechat':pruneChat();break;
     case 'delmsg':if(b.dataset.armed){DB.collection('chat').doc(d.id).delete().catch(err=>toast(errMsg(err)));}else{b.dataset.armed='1';b.classList.add('armed');b.title='Silmek için yeniden tıkla';toast('Silmek için yeniden tıkla.');setTimeout(()=>{if(b.isConnected){delete b.dataset.armed;b.classList.remove('armed');}},4000);}break;
@@ -1601,7 +1602,7 @@ document.addEventListener('input',e=>{
 document.addEventListener('focusin',e=>{if(e.target.id==='gsearch'&&S.gq)drawSearch();});
 document.addEventListener('change',e=>{
   if(e.target.dataset&&e.target.dataset.up){upload(e.target);return;}
-  if(e.target.dataset&&e.target.dataset.acc){const em=e.target.dataset.acc,role=e.target.value,old=byId(S.access,em)||{};const {id,...body}=old;DB.collection('access').doc(em).set({...body,role}).then(()=>toast(`${em}: ${ROLE_LABEL[role]}`),err=>toast(errMsg(err)));return;}
+  if(e.target.dataset&&e.target.dataset.acc){const uid=e.target.dataset.acc,role=e.target.value;DB.collection('keys').doc(uid).update({role}).then(()=>toast(`${dispName(uid)}: ${ROLE_LABEL[role]}`),err=>toast(errMsg(err)));return;}
   if(e.target.id==='restore-file'){const f=e.target.files[0];if(!f)return;const rd=new FileReader();rd.onload=()=>{try{const j=JSON.parse(rd.result);const data=j&&j.data;if(!data||typeof data!=='object')throw 0;const count=Object.values(data).reduce((s,a)=>s+(Array.isArray(a)?a.length:0),0);S.restore={data,count,ready:count>0,msg:`${f.name}: ${count} kayıt bulundu (${String(j.exportedAt||'').slice(0,10)}).`};}catch(_){S.restore={msg:'Bu dosya geçerli bir arşiv yedeği değil.'};}render();};rd.readAsText(f);}
 });
 document.addEventListener('keydown',e=>{
@@ -1635,7 +1636,7 @@ async function init(){
   const mark=k=>{S.loaded.add(k);if(S.loaded.size>=total&&S.loading){S.loading=false;S.slow=false;clearTimeout(timer);}};
   kinds.forEach(kind=>db.collection(K[kind].col).onSnapshot(snap=>{S[kind]=snap.docs.map(d=>({...d.data(),id:d.id}));if(!snap.metadata.fromCache)mark(kind);soon();},
     err=>{mark(kind);if(err&&err.code!=='revoked')S.note='Kayıtların bir kısmı yüklenemedi. Sayfayı yeniden açmayı dene.';soon();}));
-  if(FB&&S.canAdmin)db.collection('access').onSnapshot(s=>{S.access=s.docs.map(d=>({...d.data(),id:d.id}));if(S.view==='ayarlar')soon();},()=>{});
+  if(FB&&S.canAdmin)db.collection('keys').onSnapshot(s=>{S.access=s.docs.map(d=>({...d.data(),id:d.id}));if(S.view==='ayarlar')soon();},()=>{});
   db.collection('chat').orderBy('at','desc').limit(200).onSnapshot(s=>{S.chat=s.docs.map(d=>({...d.data(),id:d.id}));if(S.view==='ooc'||S.view==='anasayfa')soon();},()=>{});
   db.doc('meta/settings').onSnapshot(s=>{S.settings=s.exists?s.data():{};if(!s.metadata.fromCache)mark('settings');soon();},()=>{mark('settings');soon();});
   if(S.meId){
