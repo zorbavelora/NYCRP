@@ -9,14 +9,14 @@
   function gate(html){
     let g=document.getElementById('fb-gate');
     if(!g){g=document.createElement('div');g.id='fb-gate';document.body.appendChild(g);}
-    g.style.cssText='position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 20%,rgba(109,20,33,.35),transparent 60%),#0c0708;color:#ece2d6;font-family:"Cormorant Garamond",Georgia,serif;text-align:center';
+    g.style.cssText='position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 20%,rgba(122,69,179,.38),transparent 60%),#110b19;color:#f3eaf6;font-family:"Cormorant Garamond",Georgia,serif;text-align:center';
     g.innerHTML=`<div style="max-width:440px;display:grid;gap:16px;justify-items:center">
-      <div style="font-family:Cinzel,serif;font-size:64px;letter-spacing:.14em;line-height:1">NYC</div>
-      <div style="height:1px;width:180px;background:linear-gradient(90deg,transparent,#8d744a,transparent)"></div>${html}</div>`;
+      <div style="font-family:Cinzel,serif;font-size:64px;letter-spacing:.14em;line-height:1">SEUL</div>
+      <div style="height:1px;width:180px;background:linear-gradient(90deg,transparent,#e2a3c9,transparent)"></div>${html}</div>`;
     return g;
   }
-  const btn='font-family:Cinzel,serif;letter-spacing:.12em;font-size:13px;text-transform:uppercase;padding:12px 22px;border:1px solid #8a5a3e;border-radius:4px;background:linear-gradient(180deg,#8e2333,#6d1421);color:#f4e9dc;cursor:pointer';
-  const inp='width:100%;box-sizing:border-box;padding:11px 14px;border-radius:4px;border:1px solid #5a353c;background:#170e10;color:#ece2d6;font:inherit;font-size:18px;text-align:center';
+  const btn='font-family:Cinzel,serif;letter-spacing:.12em;font-size:13px;text-transform:uppercase;padding:12px 22px;border:1px solid #e2a3c9;border-radius:4px;background:linear-gradient(180deg,#7a45b3,#5a2d8c);color:#f4e9dc;cursor:pointer';
+  const inp='width:100%;box-sizing:border-box;padding:11px 14px;border-radius:4px;border:1px solid #6b5288;background:#1b1328;color:#f3eaf6;font:inherit;font-size:18px;text-align:center';
   const escH=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const secretRef=(fs,db)=>fs.doc(db,'secret','main');
   // Ask for the group password; the security rules accept the key only if it matches.
@@ -25,25 +25,25 @@
       const show=()=>{
         const g=gate(`<p style="font-size:19px;margin:0">Arşive girmek için grup şifresini yaz.</p>
           <form id="fb-pw" style="display:grid;gap:12px;width:100%"><input id="fb-pass" type="password" autocomplete="current-password" style="${inp}" placeholder="Grup şifresi" aria-label="Grup şifresi"><button style="${btn}">Gir</button></form>
-          <p id="fb-msg" style="margin:0;color:#cf6a7c;min-height:1.4em"></p>
-          <button id="fb-setup" style="background:none;border:none;color:#7f6c68;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">İlk kurulum: şifreleri belirle</button>`);
+          <p id="fb-msg" style="margin:0;color:#f4a6c8;min-height:1.4em"></p>
+          <button id="fb-setup" style="background:none;border:none;color:#8e7da1;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">İlk kurulum: şifreleri belirle</button>`);
         const pw=g.querySelector('#fb-pass');pw.focus();
         g.querySelector('#fb-pw').onsubmit=async e=>{
           e.preventDefault();const k=pw.value;if(!k){pw.focus();return;}
-          const msg=g.querySelector('#fb-msg');msg.style.color='#b4a49c';msg.textContent='Kontrol ediliyor…';
+          const msg=g.querySelector('#fb-msg');msg.style.color='#c3b3d1';msg.textContent='Kontrol ediliyor…';
           for(const role of ['editor','contributor']){
             try{await fs.setDoc(fs.doc(db,'keys',uid),{role,k,at:new Date().toISOString()});res(role);return;}catch(_){}
           }
-          msg.style.color='#cf6a7c';msg.textContent='Şifre yanlış.';pw.select();
+          msg.style.color='#f4a6c8';msg.textContent='Şifre yanlış.';pw.select();
         };
         g.querySelector('#fb-setup').onclick=setup;
       };
       const setup=()=>{
         const g=gate(`<p style="font-size:19px;margin:0">İlk kurulum</p>
-          <p style="margin:0;color:#b4a49c">Bu yalnızca bir kez, sitenin sahibi tarafından yapılır. Arkadaşlarına <b style="color:#ece2d6">grup şifresini</b> verirsin; <b style="color:#ece2d6">yönetici şifresi</b> sende kalır.</p>
+          <p style="margin:0;color:#c3b3d1">Bu yalnızca bir kez, sitenin sahibi tarafından yapılır. Arkadaşlarına <b style="color:#f3eaf6">grup şifresini</b> verirsin; <b style="color:#f3eaf6">yönetici şifresi</b> sende kalır.</p>
           <form id="fb-su" style="display:grid;gap:12px;width:100%"><input id="fb-m" type="password" autocomplete="new-password" style="${inp}" placeholder="Grup şifresi (en az 6 karakter)" aria-label="Grup şifresi"><input id="fb-a" type="password" autocomplete="new-password" style="${inp}" placeholder="Yönetici şifresi (farklı olsun)" aria-label="Yönetici şifresi"><button style="${btn}">Kaydet ve gir</button></form>
-          <p id="fb-msg" style="margin:0;color:#cf6a7c;min-height:1.4em"></p>
-          <button id="fb-back" style="background:none;border:none;color:#7f6c68;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">Geri dön</button>`);
+          <p id="fb-msg" style="margin:0;color:#f4a6c8;min-height:1.4em"></p>
+          <button id="fb-back" style="background:none;border:none;color:#8e7da1;font:inherit;font-size:14px;text-decoration:underline;cursor:pointer">Geri dön</button>`);
         g.querySelector('#fb-back').onclick=show;
         g.querySelector('#fb-su').onsubmit=async e=>{
           e.preventDefault();const m=g.querySelector('#fb-m').value,a=g.querySelector('#fb-a').value,msg=g.querySelector('#fb-msg');
@@ -74,14 +74,14 @@
     if(booting)return booting;
     booting=(async()=>{
       const cfg=window.FIREBASE_CONFIG;
-      if(!cfg||!cfg.apiKey){gate('<p style="font-size:19px;margin:0">Firebase ayarı eksik.</p><p style="margin:0;color:#b4a49c">index.html içindeki FIREBASE_CONFIG doldurulmalı.</p>');return null;}
+      if(!cfg||!cfg.apiKey){gate('<p style="font-size:19px;margin:0">Firebase ayarı eksik.</p><p style="margin:0;color:#c3b3d1">index.html içindeki FIREBASE_CONFIG doldurulmalı.</p>');return null;}
       const [app,auth,fs]=await Promise.all(['firebase-app','firebase-auth','firebase-firestore'].map(m=>import(BASE+m+'.js')));
       const A=app.initializeApp(cfg),au=auth.getAuth(A),db=fs.getFirestore(A);
       // No accounts: each browser gets an invisible anonymous id, then proves the group password once.
       let user=await new Promise(r=>{const un=auth.onAuthStateChanged(au,x=>{un();r(x);});});
       if(!user){
         try{user=(await auth.signInAnonymously(au)).user;}
-        catch(e){gate(`<p style="font-size:19px;margin:0">Siteye bağlanılamadı.</p><p style="margin:0;color:#b4a49c">${e&&e.code==='auth/admin-restricted-operation'?'Firebase’de Authentication &gt; Sign-in method altında <b>Anonymous</b> girişi açılmamış.':'Bağlantını kontrol edip sayfayı yenile.'}</p>`);return null;}
+        catch(e){gate(`<p style="font-size:19px;margin:0">Siteye bağlanılamadı.</p><p style="margin:0;color:#c3b3d1">${e&&e.code==='auth/admin-restricted-operation'?'Firebase’de Authentication &gt; Sign-in method altında <b>Anonymous</b> girişi açılmamış.':'Bağlantını kontrol edip sayfayı yenile.'}</p>`);return null;}
       }
       const uid=user.uid;
       let role=null;
@@ -130,7 +130,7 @@
   function makeUser(C){
     const {fs,db,uid,role,name}=C,admin=role==='editor';
     const cache={};
-    const initialsSvg=n=>'data:image/svg+xml,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#2a171b"/><text x="32" y="40" text-anchor="middle" font-family="Georgia" font-size="24" fill="#c9a66b">${String(n||'?').trim().slice(0,1).toLocaleUpperCase('tr').replace(/[<&>]/g,'')}</text></svg>`);
+    const initialsSvg=n=>'data:image/svg+xml,'+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64"><rect width="64" height="64" fill="#2a1d3d"/><text x="32" y="40" text-anchor="middle" font-family="Georgia" font-size="24" fill="#f4a6c8">${String(n||'?').trim().slice(0,1).toLocaleUpperCase('tr').replace(/[<&>]/g,'')}</text></svg>`);
     const me={id:uid,name,avatarUrl:initialsSvg(name),color:'#8e2333',email:null,isOwner:admin,canEdit:admin};
     return {
       isOwner:async()=>admin,canEdit:async()=>admin,
