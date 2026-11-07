@@ -936,7 +936,7 @@ function render(){
   const log0=$('#chatlog'),chatAtEnd=!log0||log0.scrollHeight-log0.scrollTop-log0.clientHeight<80,chatTop=log0?log0.scrollTop:0;
   const drafts={};$('#view').querySelectorAll('textarea[id],select[id]:not([data-f]),input[id]:not([data-f]):not([type=file])').forEach(el=>drafts[el.id]=el.value);
   const cur=ROUTE_TAB[S.view]||S.view;
-  $('#nav').innerHTML=NAV.map(([g,items],gi)=>`${gi===1?'<div class="side-sep"></div>':''}<div class="nav-g">${g?`<h4>${g}</h4>`:''}${items.map(([k,l,ic,cnt])=>`<a class="nav-i" href="#${k}" ${k===cur?'aria-current="page"':''}>${icon(ic)}${l}${cnt&&S[cnt].length?`<b>${S[cnt].length}</b>`:''}</a>`).join('')}</div>`).join('');
+  $('#nav').innerHTML=NAV.map(([g,items],gi)=>`${gi===1?'<div class="side-sep"></div>':''}<div class="nav-g">${g?`<h4>${g}</h4>`:''}${items.map(([k,l,ic,cnt])=>`<a class="nav-i" href="#${k}" ${k===cur?'aria-current="page"':''}>${icon(ic)}${l}${cnt&&navCount(cnt)?`<b>${navCount(cnt)}</b>`:''}</a>`).join('')}</div>`).join('');
   $('#mono').innerHTML=monogram();
   $('#moon').innerHTML=icon(document.documentElement.dataset.mood==='light'?'sun':'moon');
   const pal=$('#palette');pal.innerHTML=icon(isGothic()?'candle':'sakura');pal.title=isGothic()?'Tema: Gotik (Sakura’ya geç)':'Tema: Sakura (Gotik’e geç)';pal.setAttribute('aria-label',pal.title);
@@ -955,6 +955,8 @@ function render(){
   if(keep){const e=document.getElementById(keep.id);if(e){e.focus();try{if(keep.s!=null)e.setSelectionRange(keep.s,keep.e);}catch(_){}}}
   resolveNames();
 }
+// Menu counts leave out records put on the shelf, so they match what each page lists.
+function navCount(k){return (S[k]||[]).filter(r=>!r.archived).length;}
 function footHTML(){
   const so=[['discord','Discord'],['youtube','YouTube'],['x','X'],['instagram','Instagram']].filter(([k])=>safeUrl(S.settings[k]));
   return `<div class="socials">${so.map(([k,l])=>`<a href="${esc(safeUrl(S.settings[k]))}" target="_blank" rel="noopener noreferrer" aria-label="${l}">${icon({x:'xlogo'}[k]||k)}</a>`).join('')}</div>
@@ -1019,7 +1021,6 @@ function vProfiles(){
     if(f.player&&c.player!==f.player)return false;if(f.org&&!commsOf(c.id).some(x=>x.o.id===f.org))return false;
     if(q&&![c.name,c.codename,c.aliases,c.fileNo,c.occupation,c.player].some(s=>low(s).includes(q)))return false;return true;};
   const list=S.chars.filter(pass).sort(sortName);
-  const main=list.filter(c=>c.profileType!=='Yan karakter'),side=list.filter(c=>c.profileType==='Yan karakter');
   const live=S.chars.filter(c=>!c.archived),types=allTypes();
   const filters=`<div class="filters"><input id="f-q" data-f="q" class="in" type="search" placeholder="İsim, lakap, kayıt no…" value="${esc(f.q)}" aria-label="Karakter ara">
     ${S.comms.length?sel('f-org','org','Tüm haneler',[...S.comms].sort(sortName).map(o=>[o.id,o.name]),f.org):''}
@@ -1029,7 +1030,7 @@ function vProfiles(){
   if(S.loading&&!S.chars.length)body=loadingBlock();
   else if(!S.chars.length)body=emptyPanel('Galeri henüz boş','Her karakter için bir portre as: lakap, tür (mafya, şarkıcı, polis…), tehlike ve aranma, geçmişi, bağları, serveti, galerisi ve belgeleri.',canW()?`<button class="btn primary" data-act="new" data-kind="chars">İlk portreyi as</button>`:'');
   else if(!list.length)body=noMatch();
-  else body=(main.length?`<div class="grid">${main.map(pcard).join('')}</div>`:'')+(side.length?`<h2 class="sec-h">${icon('mask')}Yan karakterler · ${side.length}</h2><div class="grid">${side.map(pcard).join('')}</div>`:'');
+  else body=`<div class="grid">${list.map(pcard).join('')}</div>`;
   return head('Portre galerisi','Karakterler',`${list.length} portre`,newBtn('chars','Yeni karakter'))+filters+
     (types.length?qchips('ftype',f.type,types,v=>v?live.filter(c=>(c.types||[]).includes(v)).length:live.length):'')+body;
 }
