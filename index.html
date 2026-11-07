@@ -1043,8 +1043,12 @@ function vChar(){
   const cases=S.cases.filter(v=>(v.involved||[]).some(i=>i.charId===c.id)||v.agentId===c.id);
   const cons=S.cons.filter(k=>k.targetId===c.id||k.assignedId===c.id||(k.suspects||[]).some(s=>s.charId===c.id));
   const awards=S.awards.filter(a=>a.winnerId===c.id);
-  const rels=(c.relations||[]).filter(r=>r.charId||r.label);
-  const back=S.chars.filter(o=>o.id!==c.id).flatMap(o=>(o.relations||[]).filter(r=>r.charId===c.id).map(r=>({o,label:r.label})));
+  // A bond written on both characters shows once: own label first, the other side's label beside it.
+  const seen=new Set();
+  const rels=(c.relations||[]).filter(r=>(r.charId||r.label)&&!(r.charId&&(seen.has(r.charId)||!seen.add(r.charId))));
+  const backAll=S.chars.filter(o=>o.id!==c.id).flatMap(o=>(o.relations||[]).filter(r=>r.charId===c.id).map(r=>({o,label:r.label})));
+  const backLabel=id=>(backAll.find(b=>b.o.id===id)||{}).label;
+  const back=backAll.filter(b=>!seen.has(b.o.id)&&(seen.add(b.o.id),true));
   const gallery=(c.gallery||[]).filter(Boolean);
   const led=[['Durum',c.status||'Hayatta'],['Tehlike',c.threat||'Zararsız'],['Aranma',c.heat||'Temiz'],['Hanesi',null],['Oynayan',c.player],['Yaş',c.age],['Doğum günü',c.birthday],['Uyruk',c.nationality],['Boy',c.height],['Kilo',c.weight],['Meslek',c.occupation],['Yaşadığı yer',c.residence],['Diğer adları',c.aliases]];
   const ledHTML=led.map(([l,v])=>l==='Hanesi'?(cm.length?`<div><span>Hanesi</span><b>${cm.map(x=>`<a href="#t-${esc(x.o.id)}">${esc(x.o.name)}</a>${x.role?` <small class="muted">(${esc(x.role)})</small>`:''}`).join(', ')}</b></div>`:''):(v?`<div><span>${l}</span><b>${esc(v)}</b></div>`:'')).join('');
@@ -1057,7 +1061,7 @@ function vChar(){
     c.bio&&sec('Geçmişi','book',`<div class="prose">${rich(c.bio)}</div>`),
     c.personality&&sec('Kişiliği','mask',rich(c.personality)),
     c.activities&&sec('Bilinen işleri','dagger',rich(c.activities)),
-    (rels.length||back.length)&&sec('Bağları','rose',`<div class="links">${rels.map(r=>{const o=ch(r.charId);return o?`<a class="lnk" href="#k-${esc(o.id)}">${mini(o)}<span class="t"><strong>${esc(o.classified?'Bilinmeyen':o.name)}</strong><small>${esc(r.label||'bağlantılı')}</small></span>${icon('arrow')}</a>`:`<div class="lnk"><span class="t"><strong>${esc(r.label||'Silinmiş kayıt')}</strong></span></div>`;}).join('')}${back.map(b=>`<a class="lnk" href="#k-${esc(b.o.id)}">${mini(b.o)}<span class="t"><strong>${esc(b.o.classified?'Bilinmeyen':b.o.name)}</strong><small>${esc(b.label||'bağlantılı')} · onun sayfasında</small></span>${icon('arrow')}</a>`).join('')}</div>`),
+    (rels.length||back.length)&&sec('Bağları','rose',`<div class="links">${rels.map(r=>{const o=ch(r.charId);return o?`<a class="lnk" href="#k-${esc(o.id)}">${mini(o)}<span class="t"><strong>${esc(o.classified?'Bilinmeyen':o.name)}</strong><small>${esc(r.label||backLabel(o.id)||'bağlantılı')}${backLabel(o.id)&&r.label&&low(backLabel(o.id))!==low(r.label)?` · onun gözünden: ${esc(backLabel(o.id))}`:''}</small></span>${icon('arrow')}</a>`:`<div class="lnk"><span class="t"><strong>${esc(r.label||'Silinmiş kayıt')}</strong></span></div>`;}).join('')}${back.map(b=>`<a class="lnk" href="#k-${esc(b.o.id)}">${mini(b.o)}<span class="t"><strong>${esc(b.o.classified?'Bilinmeyen':b.o.name)}</strong><small>${esc(b.label||'bağlantılı')} · onun sayfasında</small></span>${icon('arrow')}</a>`).join('')}</div>`),
     sec('Mülkiyeti','building',`<div class="two"><div><p class="eyebrow" style="margin:0 0 8px">Araçlar</p>${assetLinks(vehs,'a',v=>v.plate?'Plaka '+v.plate:v.year)||'<p class="empty-i">Kayıtlı araç yok.</p>'}</div><div><p class="eyebrow" style="margin:0 0 8px">Mülkler</p>${assetLinks(props,'m',p=>[p.kind,p.location].filter(Boolean).join(' · '))||'<p class="empty-i">Kayıtlı mülk yok.</p>'}</div></div>
       ${eqs.length?`<p class="eyebrow" style="margin:16px 0 8px">Eşyalar</p>${assetLinks(eqs,'e',e=>e.kind)}`:''}${canW()?`<div class="r-actions" style="margin-top:12px">${newBtn('vehs','Araç ekle',{ownerId:c.id},'small')}${newBtn('props','Mülk ekle',{ownerId:c.id},'small')}${newBtn('equip','Eşya ekle',{ownerId:c.id},'small')}</div>`:''}`),
     (c.banks||[]).length&&sec('Servet','gem',`<div class="tbl-wrap"><table class="tbl" style="min-width:440px"><thead><tr><th>Banka</th><th>Hesap</th><th>Bakiye</th><th>Not</th></tr></thead><tbody>${c.banks.map(b=>`<tr><td>${esc(b.bank)}</td><td class="num">${esc(b.account)}</td><td class="num">${esc(b.balance)}</td><td>${esc(b.note)}</td></tr>`).join('')}</tbody></table></div>`),
